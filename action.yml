@@ -1,0 +1,78 @@
+name: 'Install datadog-ci'
+description: 'Installs the Datadog CI CLI (standalone binary) on the runner'
+branding:
+  icon: 'download'
+  color: 'purple'
+
+inputs:
+  version:
+    description: >
+      Version of datadog-ci to install.
+      Use "latest" (default) to always get the most recent release.
+      Use a specific tag like "v5.6.0" to pin.
+    required: false
+    default: 'latest'
+
+outputs:
+  version:
+    description: 'The concrete version that was installed (e.g. "v5.6.0")'
+    value: ${{ steps.resolve-version.outputs.version }}
+  binary-path:
+    description: 'Absolute path to the installed datadog-ci binary'
+    value: ${{ steps.setup.outputs.binary-path }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Resolve platform
+      id: resolve-platform
+      shell: bash
+      run: bash "${{ github.action_path }}/resolve-platform.sh"
+
+    - name: Resolve version
+      id: resolve-version
+      shell: bash
+      run: bash "${{ github.action_path }}/resolve-version.sh" "${{ inputs.version }}"
+
+    - name: Cache datadog-ci binary
+      id: cache
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      with:
+        path: ${{ runner.tool_cache }}/datadog-ci/${{ steps.resolve-version.outputs.version }}
+        key: datadog-ci-${{ steps.resolve-version.outputs.version }}-${{ runner.os }}-${{ runner.arch }}
+
+    - name: Download datadog-ci
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: >
+        bash "${{ github.action_path }}/download.sh"
+        "${{ steps.resolve-version.outputs.version }}"
+        "${{ steps.resolve-platform.outputs.binary-name }}"
+
+    - name: Verify checksum
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: >
+        bash "${{ github.action_path }}/verify-checksum.sh"
+        "${{ steps.resolve-version.outputs.version }}"
+        "${{ steps.resolve-platform.outputs.binary-name }}"
+
+    - name: Add to PATH and verify
+      id: setup
+      shell: bash
+      run: |
+        install_dir="${RUNNER_TOOL_CACHE:-${HOME}/.datadog-ci}/datadog-ci/${{ steps.resolve-version.outputs.version }}"
+        echo "$install_dir" >> "$GITHUB_PATH"
+
+        # Determine the local binary name
+        if [[ "$RUNNER_OS" == "Windows" ]]; then
+          echo "binary-path=$install_dir/datadog-ci.exe" >> "$GITHUB_OUTPUT"
+        else
+          echo "binary-path=$install_dir/datadog-ci" >> "$GITHUB_OUTPUT"
+        fi
+
+        # Verify the binary works
+        if ! "$install_dir/datadog-ci$(if [[ "$RUNNER_OS" == "Windows" ]]; then echo '.exe'; fi)" version; then
+          echo "::error::datadog-ci binary verification failed. The binary may be corrupted or incompatible with this runner."
+          exit 1
+        fi

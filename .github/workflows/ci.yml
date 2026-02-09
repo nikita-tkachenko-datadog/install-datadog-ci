@@ -1,0 +1,47 @@
+name: CI
+on: [push, pull_request]
+
+jobs:
+  test-install:
+    strategy:
+      fail-fast: false
+      matrix:
+        # Matches the OS/arch combinations used by the datadog-ci release pipeline:
+        # ubuntu-latest (Linux x64), ubuntu-24.04-arm (Linux ARM64),
+        # macos-latest (macOS ARM64), macos-latest-large (macOS x64), windows-latest (Win x64)
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-latest-large, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Test 1: Install with "latest"
+      - name: Install latest
+        uses: ./
+        id: install-latest
+
+      - name: Verify latest install
+        shell: bash
+        run: |
+          datadog-ci version
+          echo "Installed version: ${{ steps.install-latest.outputs.version }}"
+          # Verify version output is not empty and starts with 'v'
+          [[ "${{ steps.install-latest.outputs.version }}" == v* ]]
+
+      # Test 2: Install with a pinned version
+      - name: Install pinned version
+        uses: ./
+        id: install-pinned
+        with:
+          version: 'v5.6.0'
+
+      - name: Verify pinned install
+        shell: bash
+        run: |
+          version=$(datadog-ci version)
+          [[ "$version" == *"5.6.0"* ]]
+
+      # Test 3: Verify caching (second run should hit cache)
+      - name: Install same pinned version again (should cache-hit)
+        uses: ./
+        with:
+          version: 'v5.6.0'

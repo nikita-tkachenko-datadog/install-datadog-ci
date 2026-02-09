@@ -1,0 +1,59 @@
+# Install datadog-ci Action
+
+A GitHub Action that installs the [Datadog CI CLI](https://github.com/DataDog/datadog-ci) (standalone binary) on the runner.
+
+## Usage
+
+```yaml
+steps:
+  - name: Install datadog-ci
+    uses: DataDog/install-datadog-ci-action@v1
+
+  - name: Use datadog-ci
+    run: datadog-ci version
+```
+
+### Pin to a specific version
+
+```yaml
+- uses: DataDog/install-datadog-ci-action@v1
+  with:
+    version: 'v5.6.0'
+```
+
+## Inputs
+
+| Input | Description | Required | Default |
+|-------|-------------|----------|---------|
+| `version` | Version of datadog-ci to install. Use `"latest"` for the most recent release, or a specific tag like `"v5.6.0"` to pin. | No | `latest` |
+
+## Outputs
+
+| Output | Description |
+|--------|-------------|
+| `version` | The concrete version that was installed (e.g. `"v5.6.0"`) |
+| `binary-path` | Absolute path to the installed datadog-ci binary |
+
+## Supported platforms
+
+| Runner OS | Architecture | Binary |
+|-----------|-------------|--------|
+| Linux | X64 | `datadog-ci_linux-x64` |
+| Linux | ARM64 | `datadog-ci_linux-arm64` |
+| macOS | X64 | `datadog-ci_darwin-x64` |
+| macOS | ARM64 | `datadog-ci_darwin-arm64` |
+| Windows | X64 | `datadog-ci_win-x64` |
+
+## Caching
+
+The action uses `actions/cache` to cache the downloaded binary. The cache key is `datadog-ci-{version}-{runner.os}-{runner.arch}`.
+
+When using `version: latest`, the action first resolves "latest" to a concrete version tag, then uses that as the cache key. A new `datadog-ci` release naturally invalidates the cache.
+
+## Checksum verification
+
+When available, the action verifies the downloaded binary against SHA-256 checksums published alongside the release assets. If the checksums file is not available (older releases), the action continues with a warning.
+
+## License
+
+Apache 2.0 - See [LICENSE](LICENSE) for details.

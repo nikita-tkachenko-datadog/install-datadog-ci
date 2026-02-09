@@ -1,0 +1,29 @@
+name: Release smoke test
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'datadog-ci version to test (e.g. "v5.7.0")'
+        required: true
+
+jobs:
+  test-install:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-latest-large, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install specific version
+        uses: ./
+        id: install
+        with:
+          version: ${{ inputs.version }}
+
+      - name: Verify install
+        shell: bash
+        run: |
+          datadog-ci version
+          [[ "${{ steps.install.outputs.version }}" == "${{ inputs.version }}" ]]
